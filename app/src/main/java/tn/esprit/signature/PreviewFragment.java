@@ -30,7 +30,6 @@ import android.media.ImageReader;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -39,7 +38,6 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -118,43 +116,17 @@ public class PreviewFragment extends Fragment implements View.OnClickListener, A
      * still image is ready to be saved.
      */
     private final ImageReader.OnImageAvailableListener mOnImageAvailableListener
-            = new ImageReader.OnImageAvailableListener() {
+            = reader -> {
+        Image image = reader.acquireNextImage();
 
-        @Override
-        public void onImageAvailable(ImageReader reader) {
-            Image image = reader.acquireNextImage();
-            FrameLayout crosshair = mDataBinding.crosshair;
+        Matrix matrix = new Matrix();
+        matrix.setRotate(90);
+        Bitmap bmp = Bitmap.createBitmap(convertToBitmap(image), 0, 0, image.getWidth(), image.getHeight(), matrix, true);
 
-            Matrix matrix = new Matrix();
-            matrix.setRotate(90);
-            Bitmap bmp = Bitmap.createBitmap(convertToBitmap(image), 0, 0, image.getWidth(), image.getHeight(), matrix, true);
+        getActivity().getSupportFragmentManager().beginTransaction().replace(R.id.fragment_host, ActionFragment.create(bmp)).addToBackStack(TAG).commit();
 
-            DisplayMetrics displayMetrics = new DisplayMetrics();
-            getActivity().getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-
-            int imageHeight = image.getWidth();
-            int imageWidth = image.getHeight();
-            int displayHeight = displayMetrics.heightPixels;
-            int displayWidth = displayMetrics.widthPixels;
-
-            float ratio = ((float) imageHeight) / displayHeight;
-
-            displayWidth *= ratio;
-            int crosshairX = (int) (crosshair.getX() * ratio);
-            int crosshairY = (int) (crosshair.getY() * ratio);
-            int crosshairWidth = (int) (crosshair.getWidth() * ratio);
-            int crosshairHeight = (int) (crosshair.getHeight() * ratio);
-
-            int leftWidthDiff = (imageWidth - displayWidth) / 2;
-
-            Bitmap croppedBmp = Bitmap.createBitmap(bmp, leftWidthDiff + crosshairX, crosshairY, crosshairWidth, crosshairHeight);
-
-            getActivity().getSupportFragmentManager().beginTransaction().replace(R.id.fragment_host, ActionFragment.create(bmp)).addToBackStack(TAG).commit();
-
-            //mBackgroundHandler.post(new ImageSaver(croppedBmp, new File(getActivity().getExternalFilesDir(null), System.currentTimeMillis() + ".jpg")));
-            image.close();
-        }
-
+        //mBackgroundHandler.post(new ImageSaver(croppedBmp, new File(getActivity().getExternalFilesDir(null), System.currentTimeMillis() + ".jpg")));
+        image.close();
     };
     /**
      * ID of the current {@link CameraDevice}.
